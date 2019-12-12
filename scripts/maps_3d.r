@@ -109,6 +109,7 @@ hobart_mat %>%
           background = "#edfffc", shadowcolor = "#273633")
 
 render_camera(theta = 120, phi = 20, zoom = 0.3, fov = 90)
+
 # 1 is the background, 0 is the foreground
 render_depth(focus = 0.8, preview_focus = TRUE)
 
@@ -116,3 +117,143 @@ render_depth(focus=0.81, focallength = 200, title_bar_color = "black", vignette=
              title_text = "The River Derwent, Tasmania", title_color = "white", title_size = 50)
 
 
+# we done
+rgl::rgl.close()
+
+# Show the intersection between land and water - this one shows bathymetry
+montereybay %>%
+  sphere_shade() %>%
+  plot_3d(montereybay, water = TRUE, waterlinecolor = "white",
+          theta = -45, zoom = 0.9, windowsize = c(1000,1000),zscale = 50)
+render_snapshot(title_text = "Monterey Bay, California", 
+                title_color = "white", title_bar_color = "black")
+
+# here show the water at 100 meters below sea level
+render_water(montereybay, zscale = 50, waterdepth = -100, 
+             waterlinecolor = "white", wateralpha = 0.7)
+render_snapshot(title_text = "Monterey Bay, California (water level: -100 meters)", 
+                title_color = "white", title_bar_color = "black")
+
+# water level at 30 meters above sea level
+render_water(montereybay, zscale = 50, waterdepth = 30, 
+             waterlinecolor = "white", wateralpha = 0.7)
+render_snapshot(title_text = "Monterey Bay, California (water level: 30 meters)", 
+                title_color = "white", title_bar_color = "black")
+
+
+rgl::rgl.close()
+
+
+# you can slice the data as well, 
+# in this case only showing everything below sea level
+mont_bathy = montereybay
+mont_bathy[mont_bathy >= 0] = NA
+
+montereybay %>%
+  sphere_shade() %>%
+  add_shadow(ray_shade(mont_bathy,zscale = 50, sunaltitude = 15, lambert = FALSE),0.5) %>%
+  plot_3d(mont_bathy, water = TRUE, waterlinecolor = "white",
+          theta = -45, zoom = 0.9, windowsize = c(1000,1000))
+
+render_snapshot(title_text = "Monterey Bay Canyon", 
+                title_color = "white", 
+                title_bar_color = "black")
+
+# clear the renderer
+rgl::rgl.clear()
+
+
+# now show everything above sea level
+mont_topo = montereybay
+mont_topo[mont_topo < 0] = NA
+
+montereybay %>%
+  sphere_shade() %>%
+  add_shadow(ray_shade(mont_topo, zscale = 50, sunaltitude = 15, lambert = FALSE),0.5) %>%
+  plot_3d(mont_topo, shadowdepth = -50, 
+          theta = 135, zoom = 0.9, windowsize = c(1000,1000))
+
+render_snapshot(title_text = "Monterey Bay (sans water)", 
+                title_color = "white", 
+                title_bar_color = "black")
+
+rgl::rgl.clear()
+
+
+# you can also cut the data into different shapes! in this case we're doing a hexagon
+# so you can make your own r-based settlers of cataan
+montereybay %>%
+  sphere_shade() %>%
+  add_shadow(ray_shade(montereybay,zscale = 50,sunaltitude = 15,lambert = FALSE),0.5) %>%
+  plot_3d(montereybay, water = TRUE, waterlinecolor = "white", baseshape = "hex",
+          theta = -45, zoom = 0.7, windowsize = c(1000,1000), 
+          shadowcolor = "#4e3b54", background = "#f7e8fc")
+
+render_snapshot(title_text = "Monterey Bay Canyon, Hexagon",  vignette = TRUE,
+                title_color = "white", title_bar_color = "black", clear = TRUE)
+
+
+# here you can carve the data into a circle
+montereybay %>%
+  sphere_shade() %>%
+  add_shadow(ray_shade(montereybay,zscale = 50,sunaltitude = 15,lambert = FALSE),0.5) %>%
+  plot_3d(montereybay, water = TRUE, waterlinecolor = "white", baseshape = "circle",
+          theta = -45, zoom = 0.7, windowsize = c(1000,1000),
+          shadowcolor = "#4f3f3a", background = "#ffeae3")
+
+render_snapshot(title_text = "Monterey Bay Canyon, Circle",
+                title_color = "white", title_bar_color = "black", clear = TRUE)
+
+# making movies now! 
+# The default setting will set the camera to orbit around the center
+montereybay %>%
+  sphere_shade() %>%
+  plot_3d(montereybay, water = TRUE, waterlinecolor = "white",
+          theta = -45, zoom = 0.9, windowsize = c(600,600))
+
+#Orbit will start with current setting of phi and theta
+render_movie(filename = "montbay.mp4", title_text = 'render_movie(type = "orbit")', 
+             phi = 30 , theta = -45)
+
+# this goes back and forth between an angle
+render_movie(filename = "montbayosc.mp4", phi = 30 , theta = -90, type = "oscillate",
+             title_text = 'render_movie(type = "oscillate")', title_color = "black")
+
+# I think this dumps the previous variables
+unlink("montbay.mp4")
+unlink("montbayosc.mp4")
+
+# you can also set up custom easing functions
+ease_function = function(beginning, end, steepness = 1, length.out = 180) {
+  single = (end) + (beginning - end) * 1/(1 + exp(seq(-10, 10, length.out = length.out)/(1/steepness)))
+  single
+}
+
+zoom_values = c(ease_function(1,0.3), ease_function(0.3,1))
+
+# The above will generate a zoom that looks like this:
+ggplot(data.frame(x=1:360, y=zoom_values),) +
+  geom_line(aes(x=x, y=y), color="red", size=2) +
+  ggtitle("Zoom value by frame")
+
+render_movie(filename="montbaycustom.mp4", type="custom", 
+             phi = 30 + 15 * sin(1:360 * pi / 180),
+             theta = -45 - 1:360,
+             zoom = zoom_values)
+
+rgl::rgl.clear()
+
+# now I'm just having fun because I really liked the hex
+montereybay %>%
+  sphere_shade() %>%
+  add_shadow(ray_shade(montereybay,zscale = 50,sunaltitude = 15,lambert = FALSE),0.5) %>%
+  plot_3d(montereybay, water = TRUE, waterlinecolor = "white", baseshape = "hex",
+          theta = -45, zoom = 0.7, windowsize = c(1000,1000), 
+          shadowcolor = "#4e3b54", background = "#f7e8fc")
+
+render_movie(filename="montbaycustom-hex.mp4", type="custom", 
+             phi = 30 + 15 * sin(1:360 * pi / 180),
+             theta = -45 - 1:360,
+             zoom = zoom_values)
+
+rgl::rgl.close()
