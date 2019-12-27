@@ -257,3 +257,64 @@ render_movie(filename="montbaycustom-hex.mp4", type="custom",
              zoom = zoom_values)
 
 rgl::rgl.close()
+unlink("montbaycustom-hex.mp4")
+
+# vary the water depth in each call creating animated features in the movie
+# Run all of the below lines through the call to unlink in one block
+montereybay %>%
+  sphere_shade(texture="desert") %>%
+  plot_3d(montereybay, windowsize=c(600,600),
+          shadowcolor="#222244", background="lightblue")
+
+render_camera(theta=-90, fov=70, phi=30, zoom=0.8)
+
+for (i in 1:60) {
+  render_water(montereybay, zscale=50, waterdepth=-60 - 60 * cos(i*pi*6/180),
+               watercolor="#3333bb", waterlinecolor="white", waterlinealpha=0.5)
+  render_snapshot(filename=glue::glue("iceage{i}.png"), title_size=30, instant_capture=TRUE,
+                  title_text = glue::glue("Sea level: {round(-60 - 60 *cos(i*pi*6/180),1)} meters"))
+}
+
+av::av_encode_video(glue::glue("iceage{1:60}.png"), output="custom_movie.mp4", framerate=30)
+
+rgl::rgl.close()
+
+unlink(glue::glue("iceage{1:60}.png"))
+unlink("custom_movie.mp4")
+
+
+# Trying out render_highquality
+# this took a looooong time to run on my computer
+# decrease the noise by setting the "samples" argument in render_highquality 
+# to a higher number (default is 100)
+hobart_mat %>%
+  sphere_shade(texture="desert") %>%
+  add_water(detect_water(hobart_mat), color="desert") %>%
+  plot_3d(hobart_mat, zscale=10)
+render_highquality()
+
+# `sphere()` and `diffuse()` are rayrender functions
+# adds a glowing sphere to the image
+# again, this takes a LONG time to run
+render_highquality(light=FALSE, 
+                   scene_elements=sphere(
+                     y=150, radius = 30, material = diffuse(
+                       lightintensity = 40, implicit_sample = TRUE
+                       )
+                     )
+                   )
+
+rgl::rgl.close()
+
+# now with Monterey Bay
+montereybay %>%
+  sphere_shade() %>%
+  plot_3d(montereybay, zscale = 50, water = TRUE)
+
+render_camera(theta = -45, zoom = 0.7, phi = 30,fov = 70)
+render_highquality(lightdirection = 100, lightaltitude = 45, lightintensity = 800,
+                   clamp_value = 10, title_text = "Monterey Bay, CA", 
+                   title_color = "white", title_bar_color = "black")
+
+
+rgl::rgl.close()
